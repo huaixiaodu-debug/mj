@@ -3,8 +3,23 @@
 ## 已完成部署 ✓
 
 - 仓库：https://github.com/huaixiaodu-debug/mj （私有）
-- 分支：main，已推送 2 次提交（7877184, 0cb4452），本地与远端同步
-- GitHub Actions 自动编译工作流已随代码推送，push 后自动在 macOS 上验证编译
+- 分支：main，本地与远端同步
+- GitHub Actions 工作流已推送：编译 App 并产出**未签名 IPA**，推到 `artifacts` 分支 + 作为 Actions artifact
+
+## 生成 IPA（需在 GitHub 网页启用 Actions）
+
+当前环境（Windows）无法编译 IPA——苹果工具链必须在 macOS + Xcode 上跑。已配置好 Actions 自动构建，但**私有仓库首次需要在网页手动启用 Actions**：
+
+1. 打开 https://github.com/huaixiaodu-debug/mj/actions
+2. 若提示 "Enable Actions"，点击启用
+3. 启用后点左侧 **Build DoorOpener** → 右上 **Run workflow** → 手动触发一次
+4. 等待运行完成（首次约 5-10 分钟）
+5. 取 IPA 二选一：
+   - **Actions artifact**：进入该次运行，页面底部 Artifacts → 下载 `DoorOpener-unsigned-IPA`
+   - **artifacts 分支**：`git checkout artifacts` 后有 `DoorOpener-unsigned.ipa`
+
+注意：这是**未签名 IPA**，无法直接安装，需用侧载工具（爱思助手/Sideloadly/AltStore）用自己的 Apple ID 重签名后安装到 iPhone（免费证书 7 天有效）。要正式签名分发需 Apple 开发者账号 + 证书。
+
 
 以下内容为原始准备说明，供参考。
 
