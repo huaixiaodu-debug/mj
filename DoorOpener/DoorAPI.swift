@@ -42,25 +42,42 @@ final class DoorAPI: ObservableObject {
     }
 
     // MARK: - Cookie 持久化
+    /// 把 Cookie 的关键字段存成字典数组（避免 NSSecureCoding 兼容问题）
+    private func cookieDict(_ c: HTTPCookie) -> [String: Any] {
+        return [
+            "name": c.name, "value": c.value,
+            "domain": c.domain, "path": c.path,
+            "expires": c.expiresDate?.timeIntervalSince1970 ?? 0
+        ]
+    }
+
     /// App 启动时把上次保存的 Cookie 恢复到 HTTPCookieStorage
     private func restoreCookies() {
-        guard let data = UserDefaults.standard.data(forKey: cookieKey),
-              let cookies = try? NSKeyedUnarchiver.unarchivedArrayOfObjects(
-                  ofClass: HTTPCookie.self, from: data) else { return }
-        for c in cookies {
-            cookieStorage.setCookie(c)
+        guard let arr = UserDefaults.standard.array(forKey: cookieKey) as? [[String: Any]],
+              let url = URL(string: base) else { return }
+        for d in arr {
+            guard let name = d["name"] as? String,
+                  let value = d["value"] as? String,
+                  let domain = d["domain"] as? String,
+                  let path = d["path"] as? String else { continue }
+            let expires = d["expires"] as? Double ?? 0
+            var props: [HTTPCookiePropertyKey: Any] = [
+                .name: name, .value: value, .domain: domain, .path: path
+            ]
+            if expires > 0 { props[.expires] = Date(timeIntervalSince1970: expires) }
+            if let c = HTTPCookie(properties: props) {
+                cookieStorage.setCookie(c)
+            }
         }
+        _ = url
     }
 
     /// 每次登录成功后把 Cookie 存到 UserDefaults（跨 App 重启保留）
     private func persistCookies() {
         guard let cookies = cookieStorage.cookies else { return }
-        // 只保存与门禁服务器相关的 Cookie
         let relevant = cookies.filter { $0.domain.contains("10.85.160.4") }
-        if let data = try? NSKeyedArchiver.archivedData(
-            withRootObject: relevant, requiringSecureCoding: true) {
-            UserDefaults.standard.set(data, forKey: cookieKey)
-        }
+        let arr = relevant.map { cookieDict($0) }
+        UserDefaults.standard.set(arr, forKey: cookieKey)
     }
 
     /// 启动时用现有 Cookie 探测会话是否有效，有效则免登录
@@ -129,10 +146,8 @@ final class DoorAPI: ObservableObject {
 
     // MARK: - 会话 Cookie 处理
     private func clearCookies() {
-        if let cookies = cookieStorage.cookies {
-            for c in cookies {
-                cookieStorage.deleteCookie(c)
-            }
+        for c in (cookieStorage.cookies ?? []) {
+            cookieStorage.deleteCookie(c)
         }
     }
 
@@ -156,7 +171,7 @@ final class DoorAPI: ObservableObject {
             return "\(k)=\(v)"
         }.joined(separator: "&").data(using: .utf8)
 
-        let (data, response) = try await URLSession.shared.dataTask(for: req)
+        let (data, response) = try await URLSession.shared.data(for: req)
         if let http = response as? HTTPURLResponse {
             syncCookies(from: http, url: url)
         }
@@ -165,7 +180,7 @@ final class DoorAPI: ObservableObject {
 
     private func get(_ urlString: String) async throws -> (Data, HTTPURLResponse?) {
         guard let url = URL(string: urlString) else { throw APIError.badURL }
-        let (data, response) = try await URLSession.shared.dataTask(for: URLRequest(url: url))
+        let (data, response) = try await URLSession.shared.data(for: URLRequest(url: url))
         if let http = response as? HTTPURLResponse {
             syncCookies(from: http, url: url)
         }
