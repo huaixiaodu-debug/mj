@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-14
@@ -14,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode_15.app/Contents/Developer
@@ -21,20 +26,50 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: List schemes
-        run: xcodebuild -list -project DoorOpener.xcodeproj
-
-      - name: Build (Simulator, no signing)
+      - name: Build unsigned IPA
         run: |
-          xcodebuild clean build \
+          set -e
+          mkdir -p build
+          xcodebuild clean archive \
             -project DoorOpener.xcodeproj \
             -scheme DoorOpener \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/DoorOpener.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
             IPHONEOS_DEPLOYMENT_TARGET=16.0 \
             -quiet
+          echo "Archive done"
+          ls -la build/DoorOpener.xcarchive/Products/Applications/
+          mkdir -p build/ipa/Payload
+          cp -R build/DoorOpener.xcarchive/Products/Applications/DoorOpener.app build/ipa/Payload/
+          cd build/ipa
+          zip -qry ../DoorOpener-unsigned.ipa Payload
+          cd ../..
+          ls -lh build/DoorOpener-unsigned.ipa
+          file build/DoorOpener-unsigned.ipa
+
+      - name: Upload IPA as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DoorOpener-unsigned-IPA
+          path: build/DoorOpener-unsigned.ipa
+          if-no-files-found: error
+
+      - name: Publish IPA to artifacts branch
+        if: github.event_name != 'pull_request'
+        run: |
+          set -e
+          cp build/DoorOpener-unsigned.ipa ./DoorOpener-unsigned.ipa
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan artifacts
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          git add -f DoorOpener-unsigned.ipa
+          git commit -m "Unsigned IPA build $(date +%Y%m%d-%H%M)" || true
+          git push -f origin artifacts
+          echo "IPA published to artifacts branch"
 
       - name: Upload build log on failure
         if: failure()
