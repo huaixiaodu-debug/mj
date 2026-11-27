@@ -153,10 +153,9 @@ final class DoorAPI: ObservableObject {
 
     /// 从响应里收集 Set-Cookie（URLSession 默认已处理，这里兜底）
     private func syncCookies(from response: HTTPURLResponse, url: URL) {
-        if let header = response.allHeaderFields as? [String: String],
-           let cookies = HTTPCookie.cookies(withResponseHeaderFields: header, for: url) {
-            cookieStorage.setCookies(cookies, for: url, mainDocumentURL: nil)
-        }
+        guard let header = response.allHeaderFields as? [String: String] else { return }
+        let cookies = HTTPCookie.cookies(withResponseHeaderFields: header, for: url)
+        cookieStorage.setCookies(cookies, for: url, mainDocumentURL: nil)
     }
 
     // MARK: - 通用请求
