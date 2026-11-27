@@ -3,8 +3,6 @@ name: Build DoorOpener
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -20,11 +18,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode_15.app/Contents/Developer
+      - name: Mark start (diagnostic)
+        run: |
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git checkout -b marker
+          echo "=== RUN STARTED $(date -u +%Y-%m-%dT%H:%M:%SZ) ===" > marker.txt
+          echo "runner: $RUNNER_OS" >> marker.txt
+          git add marker.txt
+          git commit -m "CI marker"
+          git push -f origin marker
+          echo "marker pushed"
 
       - name: Show Xcode version
-        run: xcodebuild -version
+        run: |
+          xcodebuild -version
+          xcodebuild -list -project DoorOpener.xcodeproj || true
 
       - name: Build unsigned IPA
         run: |
@@ -48,7 +57,6 @@ jobs:
           zip -qry ../DoorOpener-unsigned.ipa Payload
           cd ../..
           ls -lh build/DoorOpener-unsigned.ipa
-          file build/DoorOpener-unsigned.ipa
 
       - name: Upload IPA as artifact
         uses: actions/upload-artifact@v4
@@ -58,12 +66,11 @@ jobs:
           if-no-files-found: error
 
       - name: Publish IPA to artifacts branch
-        if: github.event_name != 'pull_request'
         run: |
           set -e
           cp build/DoorOpener-unsigned.ipa ./DoorOpener-unsigned.ipa
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
           git checkout --orphan artifacts
           git rm -rf --cached . >/dev/null 2>&1 || true
           git add -f DoorOpener-unsigned.ipa
@@ -71,10 +78,15 @@ jobs:
           git push -f origin artifacts
           echo "IPA published to artifacts branch"
 
-      - name: Upload build log on failure
+      - name: Record failure
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: /Users/runner/Library/Developer/Xcode/DerivedData/**/Logs/Build/*.xcactivitylog
-          if-no-files-found: ignore
+        run: |
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git checkout -b ci-error 2>/dev/null || git checkout ci-error
+          echo "=== BUILD FAILED $(date -u) ===" > error.log
+          echo "job: $GITHUB_JOB" >> error.log
+          git add error.log 2>/dev/null || true
+          git commit -m "build failed marker" 2>/dev/null || true
+          git push -f origin ci-error 2>/dev/null || echo "push failed too"
+          exit 1
