@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Xcode 用户数据
+**/xcuserdata/
+**/*.xcuserdatad/
+**/*.xcodeproj/project.xcworkspace/xcuserdata/
+**/*.xcodeproj/xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+
+# 构建产物
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+Package.resolved
+
+# CocoaPods
+Pods/
+
+# 密钥与敏感信息（切勿提交）
+*.p12
+*.mobileprovision
+*.p8
+*.cer
+*.key
+*.pem
+Config.plist
+secrets.*

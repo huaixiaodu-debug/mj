@@ -1,0 +1,45 @@
+name: Build DoorOpener
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode_15.app/Contents/Developer
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: List schemes
+        run: xcodebuild -list -project DoorOpener.xcodeproj
+
+      - name: Build (Simulator, no signing)
+        run: |
+          xcodebuild clean build \
+            -project DoorOpener.xcodeproj \
+            -scheme DoorOpener \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=16.0 \
+            -quiet
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: /Users/runner/Library/Developer/Xcode/DerivedData/**/Logs/Build/*.xcactivitylog
+          if-no-files-found: ignore
