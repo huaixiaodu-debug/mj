@@ -37,8 +37,8 @@ jobs:
 
       - name: Build unsigned IPA
         run: |
-          set -e
           mkdir -p build
+          set +e
           xcodebuild clean archive \
             -project DoorOpener.xcodeproj \
             -scheme DoorOpener \
@@ -48,7 +48,18 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             IPHONEOS_DEPLOYMENT_TARGET=16.0 \
-            -quiet
+            > build.log 2>&1
+          BUILD_RC=$?
+          echo "=== xcodebuild exit code: $BUILD_RC ===" | tee -a build.log
+          # 无论成败都把日志推到分支，便于诊断
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git checkout -b build-log 2>/dev/null || git checkout build-log
+          cp build.log ./ci-build.log
+          git add -f ci-build.log
+          git commit -m "build log rc=$BUILD_RC" || true
+          git push -f origin build-log || echo "log push failed"
+          if [ $BUILD_RC -ne 0 ]; then exit $BUILD_RC; fi
           echo "Archive done"
           ls -la build/DoorOpener.xcarchive/Products/Applications/
           mkdir -p build/ipa/Payload
