@@ -1,6 +1,12 @@
 # 把 DoorOpener 部署到 GitHub
 
-本地已准备好：SSH 密钥、Git 仓库、首次提交、GitHub Actions 自动编译工作流。你只需在 GitHub 网页上做两步，然后推送即可。
+## 已完成部署 ✓
+
+- 仓库：https://github.com/huaixiaodu-debug/mj （私有）
+- 分支：main，已推送 2 次提交（7877184, 0cb4452），本地与远端同步
+- GitHub Actions 自动编译工作流已随代码推送，push 后自动在 macOS 上验证编译
+
+以下内容为原始准备说明，供参考。
 
 ## 一、已为你准备好的内容
 
